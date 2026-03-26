@@ -4,9 +4,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
   <title>Houzcare | Maintenance Invoice Generator</title>
-  <!-- html2pdf.js library (for PDF generation with styling) - UPDATED for better mobile compatibility -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
-  <!-- Additional mobile-friendly PDF fallback -->
+  <!-- html2canvas for rendering - more reliable on mobile -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <!-- jsPDF for PDF creation -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <!-- Font Awesome 6 (free icons) -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
@@ -280,6 +280,7 @@
       font-family: 'Segoe UI', 'Inter', sans-serif;
       color: #1e2f3e;
       border: 1px solid #e2edf2;
+      width: 100%;
     }
 
     /* Logo area */
@@ -328,9 +329,6 @@
       flex-wrap: wrap;
       margin-bottom: 1.2rem;
     }
-    .work-order-ref {
-      font-weight: bold;
-    }
     table.invoice-items {
       width: 100%;
       border-collapse: collapse;
@@ -365,14 +363,6 @@
     .note-field {
       margin-top: 0.6rem;
     }
-    hr {
-      margin: 12px 0;
-    }
-    .warning-message {
-      color: #b45353;
-      font-size: 0.8rem;
-      margin-top: 6px;
-    }
     
     /* Loading indicator for mobile */
     .loading-overlay {
@@ -381,7 +371,7 @@
       left: 0;
       right: 0;
       bottom: 0;
-      background: rgba(0,0,0,0.7);
+      background: rgba(0,0,0,0.8);
       display: flex;
       justify-content: center;
       align-items: center;
@@ -408,6 +398,7 @@
       .form-panel, .preview-panel { min-width: 280px; }
       .invoice-card { padding: 1rem; }
       table.invoice-items th, table.invoice-items td { padding: 8px 4px; font-size: 0.85rem; }
+      .invoice-title { font-size: 1.4rem; }
     }
   </style>
 </head>
@@ -459,7 +450,6 @@
         <div id="itemsContainer" class="items-list">
           <!-- default rows will be injected via JS -->
         </div>
-        <div class="warning-message" id="itemsWarning" style="display: none;">⚠️ Please add at least one item</div>
       </div>
 
       <div class="form-group">
@@ -479,27 +469,21 @@
     </div>
     <div id="invoicePreviewContainer">
       <!-- dynamic invoice card will be rendered here -->
-      <div class="invoice-card" id="invoiceCard">
-        <!-- filled by JS -->
-      </div>
     </div>
   </div>
 </div>
 
 <script>
   // ========================
-  // 1. GLOBALS
+  // GLOBALS
   // ========================
   const LOGO_PATH = "logohuz.jpeg";
-  
   let items = [];
 
-  // helper to recalc totals
   function calculateTotal() {
     return items.reduce((sum, it) => sum + (it.quantity * it.unitPrice), 0);
   }
 
-  // Show/hide loading indicator for mobile
   function showLoading(message = "Generating PDF...") {
     let overlay = document.getElementById('loadingOverlay');
     if (!overlay) {
@@ -509,6 +493,7 @@
       overlay.innerHTML = `
         <div class="loading-spinner"></div>
         <div id="loadingMessage">${message}</div>
+        <div style="font-size: 0.8rem; margin-top: 10px;">Please wait...</div>
       `;
       document.body.appendChild(overlay);
     } else {
@@ -523,7 +508,6 @@
     if (overlay) overlay.style.display = 'none';
   }
   
-  // Render dynamic item rows in form panel
   function renderItemsForm() {
     const container = document.getElementById('itemsContainer');
     if (!container) return;
@@ -538,13 +522,13 @@
       rowDiv.dataset.index = idx;
       rowDiv.innerHTML = `
         <div class="item-desc">
-          <input type="text" class="item-desc-input" value="${escapeHtml(item.description)}" placeholder="Description (e.g., Tiling labour)">
+          <input type="text" class="item-desc-input" value="${escapeHtml(item.description)}" placeholder="Description">
         </div>
         <div class="item-qty">
-          <input type="number" class="item-qty-input" value="${item.quantity}" step="0.5" min="0.01" placeholder="Qty">
+          <input type="number" class="item-qty-input" value="${item.quantity}" step="0.5" min="0" placeholder="Qty">
         </div>
         <div class="item-price">
-          <input type="number" class="item-price-input" value="${item.unitPrice}" step="0.01" min="0" placeholder="£ unit">
+          <input type="number" class="item-price-input" value="${item.unitPrice}" step="0.01" min="0" placeholder="£">
         </div>
         <button class="remove-item" data-idx="${idx}"><i class="fas fa-trash-alt"></i></button>
       `;
@@ -605,7 +589,6 @@
     });
   }
 
-  // Build invoice HTML
   function buildInvoiceHTML() {
     const invoiceDate = document.getElementById('invoiceDate').value;
     const invoiceNumber = document.getElementById('invoiceNumber').value || 'INV-001';
@@ -623,17 +606,17 @@
       const price = item.unitPrice || 0;
       const amount = qty * price;
       itemsRows += `
-          <tr>
-            <td style="padding:8px 4px;">${escapeHtml(desc)}</td>
-            <td style="text-align:center;">${qty}</td>
-            <td style="text-align:right;">£${price.toFixed(2)}</td>
-            <td style="text-align:right;">£${amount.toFixed(2)}</td>
-          </tr>
+        <tr>
+          <td style="padding: 10px 8px; border-bottom: 1px solid #e2e8f0;">${escapeHtml(desc)}</td>
+          <td style="padding: 10px 8px; text-align: center; border-bottom: 1px solid #e2e8f0;">${qty}</td>
+          <td style="padding: 10px 8px; text-align: right; border-bottom: 1px solid #e2e8f0;">£${price.toFixed(2)}</td>
+          <td style="padding: 10px 8px; text-align: right; border-bottom: 1px solid #e2e8f0;">£${amount.toFixed(2)}</td>
+        </tr>
       `;
     });
 
     if (itemsRows === '') {
-      itemsRows = `<tr><td colspan="4" style="text-align:center;">No items added</td></tr>`;
+      itemsRows = `<tr><td colspan="4" style="text-align:center; padding: 20px;">No items added</td></tr>`;
     }
 
     const company = {
@@ -643,10 +626,10 @@
       email: "houzcareltd@gmail.com"
     };
 
-    const logoImgHtml = `<img src="${LOGO_PATH}" alt="Houzcare Logo" class="logo-img" onerror="this.onerror=null; this.src=''; this.style.display='none'; this.nextSibling.style.display='flex';" style="max-height:70px;"><span style="display:none; font-weight:bold; background:#eef2f5; padding:8px;">HOUZCARE</span>`;
+    const logoImgHtml = `<img src="${LOGO_PATH}" alt="Houzcare Logo" class="logo-img" onerror="this.style.display='none'; this.parentElement.querySelector('.logo-fallback').style.display='inline-block';" style="max-height: 70px; max-width: 160px;"><span class="logo-fallback" style="display:none; font-weight:bold; font-size:1.2rem;">🏠 HOUZCARE</span>`;
 
     return `
-      <div class="invoice-card" id="invoiceToPrint">
+      <div class="invoice-card" id="invoiceToPrint" style="background: white; width: 100%; max-width: 800px; margin: 0 auto;">
         <div class="invoice-logo-area">
           <div class="logo-box">
             ${logoImgHtml}
@@ -673,9 +656,14 @@
           <strong>Handyman assigned:</strong> ${escapeHtml(handymanName)}
         </div>
 
-        <table class="invoice-items" style="width:100%; border-collapse:collapse;">
+        <table style="width:100%; border-collapse: collapse; margin: 1rem 0;">
           <thead>
-            <tr><th style="text-align:left;">Description (Labour / Material)</th><th style="text-align:center;">Qty</th><th style="text-align:right;">Unit (£)</th><th style="text-align:right;">Amount (£)</th></tr>
+            <tr style="background: #eef3f8;">
+              <th style="padding: 12px 8px; text-align: left;">Description (Labour / Material)</th>
+              <th style="padding: 12px 8px; text-align: center;">Qty</th>
+              <th style="padding: 12px 8px; text-align: right;">Unit (£)</th>
+              <th style="padding: 12px 8px; text-align: right;">Amount (£)</th>
+            </tr>
           </thead>
           <tbody>
             ${itemsRows}
@@ -700,7 +688,6 @@
     `;
   }
 
-  // render preview into container
   function renderInvoicePreview() {
     const container = document.getElementById('invoicePreviewContainer');
     if (!container) return;
@@ -708,95 +695,120 @@
     container.innerHTML = invoiceHtml;
   }
 
-  // Mobile-compatible PDF download function
+  // Mobile-friendly PDF generation using html2canvas + jsPDF
   async function downloadPDF() {
-    const element = document.getElementById('invoicePreviewContainer').querySelector('.invoice-card');
-    if (!element) {
+    const container = document.getElementById('invoicePreviewContainer');
+    if (!container) {
       alert("Invoice preview not ready.");
       return;
     }
     
-    if (items.length === 0 || (calculateTotal() === 0 && items.length === 1 && items[0].unitPrice === 0 && items[0].quantity === 1)) {
-      if (!confirm("Invoice total is £0 or no meaningful items. Continue anyway?")) return;
+    const invoiceElement = container.querySelector('.invoice-card');
+    if (!invoiceElement) {
+      alert("Invoice preview not ready. Please refresh the preview first.");
+      return;
     }
     
-    showLoading("Preparing your invoice PDF...");
+    const total = calculateTotal();
+    if (items.length === 0 || (total === 0 && items.length === 1 && items[0].unitPrice === 0)) {
+      if (!confirm("Invoice total is £0. Continue anyway?")) return;
+    }
+    
+    showLoading("Preparing invoice...");
     
     try {
-      // Clone the element to avoid modifying the original during PDF generation
-      const originalElement = element;
-      const cloneElement = originalElement.cloneNode(true);
-      cloneElement.style.margin = '0';
-      cloneElement.style.padding = '1.8rem';
-      cloneElement.style.backgroundColor = 'white';
-      cloneElement.style.width = '100%';
+      // Ensure the element is visible and properly styled for capture
+      const originalDisplay = invoiceElement.style.display;
+      invoiceElement.style.display = 'block';
       
-      // Create a temporary container for PDF generation
-      const tempContainer = document.createElement('div');
-      tempContainer.style.position = 'absolute';
-      tempContainer.style.left = '-9999px';
-      tempContainer.style.top = '-9999px';
-      tempContainer.appendChild(cloneElement);
-      document.body.appendChild(tempContainer);
+      // Small delay to ensure any images load
+      await new Promise(resolve => setTimeout(resolve, 200));
       
-      const opt = {
-        margin: [0.5, 0.5, 0.5, 0.5],
-        filename: `Houzcare_Invoice_${document.getElementById('invoiceNumber').value || 'workorder'}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { 
-          scale: 2, 
-          letterRendering: true,
-          useCORS: true,
-          logging: false
-        },
-        jsPDF: { unit: 'in', format: 'a4', orientation: 'portrait' }
-      };
+      // Capture the element with high quality
+      const canvas = await html2canvas(invoiceElement, {
+        scale: 3,
+        backgroundColor: '#ffffff',
+        logging: false,
+        useCORS: true,
+        allowTaint: false
+      });
       
-      // Use html2pdf with promise handling for mobile
-      await html2pdf().set(opt).from(cloneElement).save();
+      const imgData = canvas.toDataURL('image/png');
+      const { jsPDF } = window.jspdf;
       
-      // Clean up
-      document.body.removeChild(tempContainer);
+      // Calculate PDF dimensions based on canvas
+      const imgWidth = 210; // A4 width in mm
+      const pageHeight = 297; // A4 height in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      let pdf = new jsPDF('p', 'mm', 'a4');
+      let position = 0;
+      
+      // Add first page
+      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+      
+      // If content is taller than one page, add another page
+      if (imgHeight > pageHeight) {
+        let heightLeft = imgHeight - pageHeight;
+        position = -pageHeight;
+        while (heightLeft > 0) {
+          pdf.addPage();
+          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+          heightLeft -= pageHeight;
+          position -= pageHeight;
+        }
+      }
+      
+      // Save the PDF
+      const invoiceNumber = document.getElementById('invoiceNumber').value || 'invoice';
+      pdf.save(`Houzcare_${invoiceNumber}.pdf`);
+      
+      invoiceElement.style.display = originalDisplay;
       hideLoading();
       
-      // Optional success feedback
-      console.log("PDF generated successfully on mobile");
+      // Optional success indicator
+      console.log("PDF saved successfully");
       
-    } catch(err) {
-      console.error("PDF generation error:", err);
+    } catch (error) {
+      console.error("PDF generation error:", error);
       hideLoading();
       
-      // Fallback: Use browser print as alternative for mobile
-      if (confirm("PDF generation had issues. Would you like to use Print (Save as PDF) instead? This works well on mobile devices.")) {
-        const printContents = buildInvoiceHTML();
-        const originalTitle = document.title;
+      // Fallback: Use print method as alternative
+      if (confirm("PDF generation had an issue. Would you like to use the Print option instead? (This works well on mobile)")) {
         const printWindow = window.open('', '_blank');
+        const printContent = buildInvoiceHTML();
         printWindow.document.write(`
+          <!DOCTYPE html>
           <html>
             <head>
-              <title>Houzcare Invoice</title>
+              <title>Houzcare Maintenance Invoice</title>
+              <meta charset="UTF-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
               <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
               <style>
-                body { font-family: 'Segoe UI', Arial, sans-serif; padding: 20px; }
-                .invoice-card { max-width: 800px; margin: 0 auto; }
+                * { margin: 0; padding: 0; box-sizing: border-box; }
+                body { 
+                  font-family: 'Segoe UI', Arial, sans-serif; 
+                  padding: 20px; 
+                  background: white;
+                }
                 @media print {
-                  body { margin: 0; padding: 0; }
-                  .invoice-card { box-shadow: none; }
+                  body { padding: 0; margin: 0; }
+                  .invoice-card { box-shadow: none; margin: 0; }
                 }
               </style>
             </head>
-            <body>${printContents}</body>
+            <body>${printContent}</body>
           </html>
         `);
         printWindow.document.close();
         printWindow.print();
       } else {
-        alert("Please try again or use the 'Refresh Invoice Preview' button first.");
+        alert("Please try refreshing the preview and downloading again.");
       }
     }
   }
 
-  // sync items from form input fields into items array
   function syncItemsFromDOM() {
     const rows = document.querySelectorAll('.item-row');
     const newItems = [];
@@ -805,17 +817,14 @@
       const qtyInput = row.querySelector('.item-qty-input');
       const priceInput = row.querySelector('.item-price-input');
       if (descInput && qtyInput && priceInput) {
-        const desc = descInput.value;
-        const qty = parseFloat(qtyInput.value) || 0;
-        const price = parseFloat(priceInput.value) || 0;
-        newItems.push({ description: desc, quantity: qty, unitPrice: price });
+        newItems.push({ 
+          description: descInput.value, 
+          quantity: parseFloat(qtyInput.value) || 0, 
+          unitPrice: parseFloat(priceInput.value) || 0 
+        });
       }
     });
-    if (newItems.length > 0) {
-      items = newItems;
-    } else if (items.length === 0) {
-      items.push({ description: 'Maintenance service', quantity: 1, unitPrice: 0 });
-    }
+    if (newItems.length > 0) items = newItems;
   }
 
   // Event Listeners
@@ -842,7 +851,6 @@
     }
   });
 
-  // initial load
   function init() {
     items = [
       { description: 'General handyman labour (3hrs)', quantity: 3, unitPrice: 38.0 },
