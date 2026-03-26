@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-  <title>Houzcare | Work Order Invoice Generator</title>
+  <title>Houzcare | Maintenance Invoice Generator</title>
   <!-- html2pdf.js library (for PDF generation with styling) -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
   <!-- Font Awesome 6 (free icons) -->
@@ -575,12 +575,12 @@
       const price = item.unitPrice || 0;
       const amount = qty * price;
       itemsRows += `
-        <tr>
+         <tr>
           <td style="padding:8px 4px;">${escapeHtml(desc)}</td>
           <td style="text-align:center;">${qty}</td>
           <td style="text-align:right;">£${price.toFixed(2)}</td>
           <td style="text-align:right;">£${amount.toFixed(2)}</td>
-        </tr>
+         </tr>
       `;
     });
 
@@ -614,7 +614,7 @@
           </div>
         </div>
 
-        <div class="invoice-title">TAX INVOICE / WORK ORDER</div>
+        <div class="invoice-title">MAINTENANCE INVOICE</div>
 
         <div class="invoice-meta">
           <div><strong>Invoice No:</strong> ${escapeHtml(invoiceNumber)}</div>
