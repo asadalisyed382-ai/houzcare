@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+  <title>Houzcare | Work Order Invoice Generator</title>
+  <!-- html2pdf.js library (for PDF generation with styling) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js" integrity="sha512-GsLlZN/3F2ErC5ifS5QtgpiJtWd43JWSuIgh7mbzZ8zBps+dvLusV+eNQATqgA/HdeKFVgA5v3S/cIrLF7QnIg==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <!-- Font Awesome 6 (free icons) -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #eef2f5;
+      font-family: 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+      padding: 2rem 1.5rem;
+      color: #1a2a3a;
+    }
+
+    /* main container */
+    .app-container {
+      max-width: 1400px;
+      margin: 0 auto;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2rem;
+      justify-content: center;
+    }
+
+    /* FORM panel */
+    .form-panel {
+      flex: 1.2;
+      min-width: 320px;
+      background: white;
+      border-radius: 28px;
+      box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.1);
+      padding: 1.8rem 2rem;
+      transition: all 0.2s;
+    }
+
+    .form-panel h2 {
+      font-size: 1.8rem;
+      font-weight: 600;
+      margin-bottom: 0.3rem;
+      color: #0f2b3d;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .form-panel h2 i {
+      color: #2c7da0;
+    }
+
+    .sub {
+      color: #4a627a;
+      border-left: 4px solid #2c7da0;
+      padding-left: 12px;
+      margin-bottom: 1.5rem;
+      font-size: 0.9rem;
+    }
+
+    .invoice-form {
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+    }
+
+    .form-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 1rem;
+      justify-content: space-between;
+    }
+
+    .form-group {
+      flex: 1;
+      min-width: 180px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-group label {
+      font-weight: 600;
+      font-size: 0.85rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #2c5a74;
+    }
+
+    .form-group input, .form-group textarea {
+      padding: 10px 14px;
+      border: 1.5px solid #dce5ec;
+      border-radius: 18px;
+      font-family: inherit;
+      font-size: 0.9rem;
+      transition: 0.2s;
+      background: #fefefe;
+    }
+
+    .form-group input:focus, .form-group textarea:focus {
+      outline: none;
+      border-color: #2c7da0;
+      box-shadow: 0 0 0 3px rgba(44,125,160,0.2);
+    }
+
+    .items-table-section {
+      margin-top: 0.5rem;
+      background: #f8fafc;
+      border-radius: 24px;
+      padding: 1rem 0.8rem;
+    }
+
+    .items-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 1rem;
+      flex-wrap: wrap;
+    }
+
+    .items-header h3 {
+      font-size: 1.2rem;
+      font-weight: 600;
+    }
+
+    .add-item-btn {
+      background: #1f6e8c;
+      border: none;
+      color: white;
+      padding: 6px 14px;
+      border-radius: 40px;
+      font-weight: 500;
+      cursor: pointer;
+      font-size: 0.8rem;
+      transition: 0.2s;
+    }
+
+    .add-item-btn:hover {
+      background: #0e4b64;
+    }
+
+    .items-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .item-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+      background: white;
+      padding: 12px;
+      border-radius: 20px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    }
+
+    .item-desc {
+      flex: 3;
+      min-width: 150px;
+    }
+    .item-desc input {
+      width: 100%;
+      padding: 8px 12px;
+      border-radius: 30px;
+      border: 1px solid #cbdde6;
+    }
+    .item-qty, .item-price {
+      flex: 0.8;
+      min-width: 90px;
+    }
+    .item-qty input, .item-price input {
+      width: 100%;
+      padding: 8px 8px;
+      border-radius: 30px;
+      border: 1px solid #cbdde6;
+    }
+    .remove-item {
+      background: #f0f3f8;
+      border: none;
+      font-size: 1.2rem;
+      cursor: pointer;
+      color: #b91c1c;
+      width: 34px;
+      height: 34px;
+      border-radius: 40px;
+      transition: 0.1s;
+    }
+    .remove-item:hover {
+      background: #fee2e2;
+    }
+
+    .generate-btn {
+      background: linear-gradient(105deg, #1f6e8c 0%, #0f4c64 100%);
+      color: white;
+      border: none;
+      padding: 14px 20px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      border-radius: 60px;
+      cursor: pointer;
+      margin-top: 1rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      transition: all 0.2s;
+    }
+
+    .generate-btn:hover {
+      transform: scale(0.98);
+      background: #0e4b64;
+    }
+
+    /* INVOICE PREVIEW panel */
+    .preview-panel {
+      flex: 1.5;
+      min-width: 420px;
+      background: #fefefe;
+      border-radius: 28px;
+      box-shadow: 0 20px 35px -12px rgba(0, 0, 0, 0.15);
+      padding: 1.5rem;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .preview-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 1rem;
+    }
+
+    .preview-header h2 {
+      font-size: 1.5rem;
+      font-weight: 600;
+    }
+
+    .pdf-button {
+      background: #2c7da0;
+      border: none;
+      padding: 10px 18px;
+      border-radius: 40px;
+      color: white;
+      font-weight: 600;
+      cursor: pointer;
+      transition: 0.2s;
+      font-size: 0.9rem;
+    }
+
+    .pdf-button i {
+      margin-right: 6px;
+    }
+
+    .pdf-button:hover {
+      background: #1f5e7a;
+    }
+
+    /* Invoice card style (for preview & PDF) */
+    .invoice-card {
+      background: white;
+      border-radius: 20px;
+      box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+      padding: 1.8rem;
+      font-family: 'Segoe UI', 'Inter', sans-serif;
+      color: #1e2f3e;
+      border: 1px solid #e2edf2;
+    }
+
+    /* Logo area */
+    .invoice-logo-area {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      border-bottom: 2px solid #d0e2ec;
+      padding-bottom: 1rem;
+      margin-bottom: 1.5rem;
+    }
+    .logo-box {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .logo-img {
+      max-height: 70px;
+      max-width: 160px;
+      object-fit: contain;
+      background: #f9f9f9;
+      border-radius: 12px;
+      padding: 4px;
+    }
+    .company-details {
+      text-align: right;
+      font-size: 0.85rem;
+      line-height: 1.4;
+    }
+    .invoice-title {
+      font-size: 1.8rem;
+      font-weight: 800;
+      color: #1f6e8c;
+      margin-bottom: 0.25rem;
+    }
+    .bill-to {
+      margin: 1rem 0;
+      background: #f5fafd;
+      padding: 0.8rem 1rem;
+      border-radius: 16px;
+    }
+    .invoice-meta {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      margin-bottom: 1.2rem;
+    }
+    .work-order-ref {
+      font-weight: bold;
+    }
+    table.invoice-items {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 1rem 0;
+    }
+    table.invoice-items th, table.invoice-items td {
+      padding: 12px 8px;
+      text-align: left;
+      border-bottom: 1px solid #e2e8f0;
+    }
+    table.invoice-items th {
+      background: #eef3f8;
+      font-weight: 600;
+    }
+    .totals {
+      text-align: right;
+      margin-top: 0.5rem;
+      padding-top: 0.5rem;
+    }
+    .total-line {
+      font-size: 1.2rem;
+      font-weight: 700;
+    }
+    .footer-note {
+      margin-top: 1.5rem;
+      font-size: 0.75rem;
+      text-align: center;
+      border-top: 1px dashed #cbdde6;
+      padding-top: 1rem;
+      color: #4f6f8a;
+    }
+    .note-field {
+      margin-top: 0.6rem;
+    }
+    hr {
+      margin: 12px 0;
+    }
+    .warning-message {
+      color: #b45353;
+      font-size: 0.8rem;
+      margin-top: 6px;
+    }
+    @media (max-width: 860px) {
+      body { padding: 1rem; }
+      .form-panel, .preview-panel { min-width: 280px; }
+    }
+  </style>
+</head>
+<body>
+<div class="app-container">
+  <!-- LEFT: Data entry panel -->
+  <div class="form-panel">
+    <h2><i class="fas fa-tools"></i> Houzcare Work Order</h2>
+    <div class="sub">Enter job details → Generate invoice preview & PDF</div>
+
+    <div class="invoice-form">
+      <div class="form-row">
+        <div class="form-group">
+          <label><i class="far fa-calendar-alt"></i> Invoice Date</label>
+          <input type="date" id="invoiceDate" value="2025-03-26">
+        </div>
+        <div class="form-group">
+          <label><i class="fas fa-hashtag"></i> Invoice No.</label>
+          <input type="text" id="invoiceNumber" placeholder="INV-001" value="HZ-2403-01">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label><i class="fas fa-user"></i> Landlord Name</label>
+          <input type="text" id="landlordName" placeholder="Full name" value="Mr. James Carter">
+        </div>
+        <div class="form-group">
+          <label><i class="fas fa-address-card"></i> Property Address</label>
+          <input type="text" id="propertyAddress" placeholder="12 Acacia Avenue, London" value="Flat 4, 12 Oxford Street, London">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label><i class="fas fa-briefcase"></i> Work Order ID</label>
+          <input type="text" id="workOrderId" placeholder="WO-101" value="WO-2456">
+        </div>
+        <div class="form-group">
+          <label><i class="fas fa-wrench"></i> Handyman Name</label>
+          <input type="text" id="handymanName" placeholder="Handyman name" value="Steve Morrison">
+        </div>
+      </div>
+
+      <!-- Dynamic items (labour + materials) -->
+      <div class="items-table-section">
+        <div class="items-header">
+          <h3><i class="fas fa-list-ul"></i> Labour & Materials</h3>
+          <button type="button" class="add-item-btn" id="addItemBtn"><i class="fas fa-plus-circle"></i> Add line</button>
+        </div>
+        <div id="itemsContainer" class="items-list">
+          <!-- default rows will be injected via JS -->
+        </div>
+        <div class="warning-message" id="itemsWarning" style="display: none;">⚠️ Please add at least one item</div>
+      </div>
+
+      <div class="form-group">
+        <label><i class="fas fa-pen-alt"></i> Additional Notes (optional)</label>
+        <textarea rows="2" id="invoiceNotes" placeholder="Payment terms, warranty, etc...">Payment due within 14 days. Thank you for choosing Houzcare!</textarea>
+      </div>
+
+      <button class="generate-btn" id="refreshPreviewBtn"><i class="fas fa-sync-alt"></i> Refresh Invoice Preview</button>
+    </div>
+  </div>
+
+  <!-- RIGHT: Invoice Preview & PDF -->
+  <div class="preview-panel">
+    <div class="preview-header">
+      <h2><i class="fas fa-file-invoice"></i> Invoice Preview</h2>
+      <button class="pdf-button" id="downloadPdfBtn"><i class="fas fa-download"></i> Download PDF Invoice</button>
+    </div>
+    <div id="invoicePreviewContainer">
+      <!-- dynamic invoice card will be rendered here -->
+      <div class="invoice-card" id="invoiceCard">
+        <!-- filled by JS -->
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ========================
+  // 1. GLOBALS
+  // ========================
+  // Logo is stored in GitHub as "logohuz.jpeg" - we reference it as relative path or absolute? 
+  // According to requirement: "I have logo saved in my Github as logohuz.jpeg" -> we assume the file is at root or accessible via URL. 
+  // For reliability, we'll use a direct reference: "logohuz.jpeg" (since it's in the same repo directory). 
+  // But to ensure no broken image, we add fallback text, and user can replace path if needed. We'll also allow dynamic loading.
+  const LOGO_PATH = "logohuz.jpeg";   // Use your actual image file name in github pages / repo root
+  // fallback text if logo missing
+
+  let items = [];   // each item: { description, quantity, unitPrice }
+
+  // helper to recalc totals
+  function calculateTotal() {
+    return items.reduce((sum, it) => sum + (it.quantity * it.unitPrice), 0);
+  }
+
+  // Render dynamic item rows in form panel
+  function renderItemsForm() {
+    const container = document.getElementById('itemsContainer');
+    if (!container) return;
+    container.innerHTML = '';
+    if (items.length === 0) {
+      // add a default example line: Labour and one material
+      items.push({ description: 'Plumbing repair (labour)', quantity: 2, unitPrice: 45.0 });
+      items.push({ description: 'Wash basin tap & materials', quantity: 1, unitPrice: 68.5 });
+    }
+    items.forEach((item, idx) => {
+      const rowDiv = document.createElement('div');
+      rowDiv.className = 'item-row';
+      rowDiv.dataset.index = idx;
+      rowDiv.innerHTML = `
+        <div class="item-desc">
+          <input type="text" class="item-desc-input" value="${escapeHtml(item.description)}" placeholder="Description (e.g., Tiling labour)">
+        </div>
+        <div class="item-qty">
+          <input type="number" class="item-qty-input" value="${item.quantity}" step="0.5" min="0.01" placeholder="Qty">
+        </div>
+        <div class="item-price">
+          <input type="number" class="item-price-input" value="${item.unitPrice}" step="0.01" min="0" placeholder="£ unit">
+        </div>
+        <button class="remove-item" data-idx="${idx}"><i class="fas fa-trash-alt"></i></button>
+      `;
+      container.appendChild(rowDiv);
+    });
+    attachItemEvents();
+  }
+
+  function attachItemEvents() {
+    // attach remove buttons
+    document.querySelectorAll('.remove-item').forEach(btn => {
+      btn.removeEventListener('click', handleRemove);
+      btn.addEventListener('click', handleRemove);
+    });
+    // attach input changes
+    document.querySelectorAll('.item-desc-input').forEach((inp, idx) => {
+      inp.removeEventListener('change', (e) => updateItemField(idx, 'description', e.target.value));
+      inp.addEventListener('change', (e) => updateItemField(idx, 'description', e.target.value));
+    });
+    document.querySelectorAll('.item-qty-input').forEach((inp, idx) => {
+      inp.removeEventListener('change', (e) => updateItemField(idx, 'quantity', parseFloat(e.target.value) || 0));
+      inp.addEventListener('change', (e) => updateItemField(idx, 'quantity', parseFloat(e.target.value) || 0));
+    });
+    document.querySelectorAll('.item-price-input').forEach((inp, idx) => {
+      inp.removeEventListener('change', (e) => updateItemField(idx, 'unitPrice', parseFloat(e.target.value) || 0));
+      inp.addEventListener('change', (e) => updateItemField(idx, 'unitPrice', parseFloat(e.target.value) || 0));
+    });
+  }
+
+  function updateItemField(index, field, value) {
+    if (items[index]) {
+      items[index][field] = value;
+      renderInvoicePreview();    // live update preview
+    }
+  }
+
+  function handleRemove(e) {
+    const btn = e.currentTarget;
+    const idxAttr = btn.getAttribute('data-idx');
+    if (idxAttr !== null) {
+      const idx = parseInt(idxAttr, 10);
+      if (!isNaN(idx) && idx >= 0 && idx < items.length) {
+        items.splice(idx, 1);
+        if (items.length === 0) {
+          // add a placeholder to avoid empty invoice
+          items.push({ description: 'Maintenance service', quantity: 1, unitPrice: 0 });
+        }
+        renderItemsForm();
+        renderInvoicePreview();
+      }
+    }
+  }
+
+  function escapeHtml(str) {
+    if (!str) return '';
+    return str.replace(/[&<>]/g, function(m) {
+      if (m === '&') return '&amp;';
+      if (m === '<') return '&lt;';
+      if (m === '>') return '&gt;';
+      return m;
+    }).replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+      return c;
+    });
+  }
+
+  // Build invoice HTML (used both for preview and pdf capture)
+  function buildInvoiceHTML() {
+    // get form data
+    const invoiceDate = document.getElementById('invoiceDate').value;
+    const invoiceNumber = document.getElementById('invoiceNumber').value || 'INV-001';
+    const landlordName = document.getElementById('landlordName').value || 'Landlord';
+    const propertyAddress = document.getElementById('propertyAddress').value || 'N/A';
+    const workOrderId = document.getElementById('workOrderId').value || 'WO-001';
+    const handymanName = document.getElementById('handymanName').value || 'Handyman';
+    const notes = document.getElementById('invoiceNotes').value || '';
+
+    const total = calculateTotal();
+
+    // Items table rows
+    let itemsRows = '';
+    items.forEach(item => {
+      const desc = item.description || 'Service';
+      const qty = item.quantity > 0 ? item.quantity : 0;
+      const price = item.unitPrice || 0;
+      const amount = qty * price;
+      itemsRows += `
+        <tr>
+          <td style="padding:8px 4px;">${escapeHtml(desc)}</td>
+          <td style="text-align:center;">${qty}</td>
+          <td style="text-align:right;">£${price.toFixed(2)}</td>
+          <td style="text-align:right;">£${amount.toFixed(2)}</td>
+        </tr>
+      `;
+    });
+
+    if (itemsRows === '') {
+      itemsRows = `<tr><td colspan="4" style="text-align:center;">No items added</td></tr>`;
+    }
+
+    // Company details
+    const company = {
+      name: "Houzcare Property Maintenance",
+      address: "363 Nuthall Road, Nottingham, NG8 5BU, UK",
+      phone: "+44 5723 00001",
+      email: "houzcareltd@gmail.com"
+    };
+
+    // Logo handling: we try to load image from relative path "logohuz.jpeg". 
+    // Use onerror fallback to text logo
+    const logoImgHtml = `<img src="${LOGO_PATH}" alt="Houzcare Logo" class="logo-img" onerror="this.onerror=null; this.src=''; this.style.display='none'; this.nextSibling.style.display='flex';" style="max-height:70px;"><span style="display:none; font-weight:bold; background:#eef2f5; padding:8px;">HOUZCARE</span>`;
+
+    return `
+      <div class="invoice-card" id="invoiceToPrint">
+        <div class="invoice-logo-area">
+          <div class="logo-box">
+            ${logoImgHtml}
+            <span style="font-weight:700; font-size:1.2rem; margin-left:6px;">Houzcare</span>
+          </div>
+          <div class="company-details">
+            <strong>${company.name}</strong><br>
+            ${company.address}<br>
+            📞 ${company.phone} &nbsp; ✉️ ${company.email}
+          </div>
+        </div>
+
+        <div class="invoice-title">TAX INVOICE / WORK ORDER</div>
+
+        <div class="invoice-meta">
+          <div><strong>Invoice No:</strong> ${escapeHtml(invoiceNumber)}</div>
+          <div><strong>Date:</strong> ${escapeHtml(invoiceDate)}</div>
+          <div><strong>Work Order ID:</strong> ${escapeHtml(workOrderId)}</div>
+        </div>
+
+        <div class="bill-to">
+          <strong><i class="fas fa-user-tie"></i> Billed To (Landlord):</strong> ${escapeHtml(landlordName)}<br>
+          <strong>Property:</strong> ${escapeHtml(propertyAddress)}<br>
+          <strong>Handyman assigned:</strong> ${escapeHtml(handymanName)}
+        </div>
+
+        <table class="invoice-items" style="width:100%; border-collapse:collapse;">
+          <thead>
+            <tr><th style="text-align:left;">Description (Labour / Material)</th><th style="text-align:center;">Qty</th><th style="text-align:right;">Unit (£)</th><th style="text-align:right;">Amount (£)</th></tr>
+          </thead>
+          <tbody>
+            ${itemsRows}
+          </tbody>
+        </table>
+
+        <div class="totals">
+          <div><strong>Subtotal:</strong> £${total.toFixed(2)}</div>
+          <div><strong>VAT (0%):</strong> £0.00</div>
+          <div class="total-line"><strong>Total Due:</strong> £${total.toFixed(2)}</div>
+        </div>
+
+        <div class="note-field">
+          <em>${escapeHtml(notes) || 'Thank you for your business.'}</em>
+        </div>
+
+        <div class="footer-note">
+          Houzcare Ltd | Registered in England | Payment: BACS transfer or card on file<br>
+          For any queries: houzcareltd@gmail.com | +44 5723 00001
+        </div>
+      </div>
+    `;
+  }
+
+  // render preview into container
+  function renderInvoicePreview() {
+    const container = document.getElementById('invoicePreviewContainer');
+    if (!container) return;
+    const invoiceHtml = buildInvoiceHTML();
+    container.innerHTML = invoiceHtml;
+    // fix any image fallback after render: re-apply onerror handler dynamic (already in html)
+  }
+
+  // generate PDF using html2pdf from the invoice element (the actual printed version inside preview container)
+  async function downloadPDF() {
+    const element = document.getElementById('invoicePreviewContainer').querySelector('.invoice-card');
+    if (!element) {
+      alert("Invoice preview not ready.");
+      return;
+    }
+    // ensure items not empty warning
+    if (items.length === 0 || calculateTotal() === 0 && items.length === 1 && items[0].unitPrice === 0 && items[0].quantity === 1) {
+      if (!confirm("Invoice total is £0 or no meaningful items. Continue anyway?")) return;
+    }
+    const opt = {
+      margin:        [0.5, 0.5, 0.5, 0.5],
+      filename:     `Houzcare_Invoice_${document.getElementById('invoiceNumber').value || 'workorder'}.pdf`,
+      image:        { type: 'jpeg', quality: 0.98 },
+      html2canvas:  { scale: 2, letterRendering: true },
+      jsPDF:        { unit: 'in', format: 'a4', orientation: 'portrait' }
+    };
+    try {
+      await html2pdf().set(opt).from(element).save();
+    } catch(err) {
+      console.error(err);
+      alert("PDF generation error, but you can print manually.");
+    }
+  }
+
+  // sync items from form input fields into items array (before preview)
+  function syncItemsFromDOM() {
+    const rows = document.querySelectorAll('.item-row');
+    const newItems = [];
+    rows.forEach(row => {
+      const descInput = row.querySelector('.item-desc-input');
+      const qtyInput = row.querySelector('.item-qty-input');
+      const priceInput = row.querySelector('.item-price-input');
+      if (descInput && qtyInput && priceInput) {
+        const desc = descInput.value;
+        const qty = parseFloat(qtyInput.value) || 0;
+        const price = parseFloat(priceInput.value) || 0;
+        newItems.push({ description: desc, quantity: qty, unitPrice: price });
+      }
+    });
+    if (newItems.length > 0) {
+      items = newItems;
+    } else if (items.length === 0) {
+      items.push({ description: 'Maintenance service', quantity: 1, unitPrice: 0 });
+    }
+  }
+
+  function refreshAll() {
+    syncItemsFromDOM();
+    renderItemsForm();   // ensures consistency, but keeps items
+    renderInvoicePreview();
+  }
+
+  // Event Listeners
+  document.getElementById('addItemBtn').addEventListener('click', () => {
+    items.push({ description: 'New service item', quantity: 1, unitPrice: 0 });
+    renderItemsForm();
+    renderInvoicePreview();
+  });
+
+  document.getElementById('refreshPreviewBtn').addEventListener('click', () => {
+    syncItemsFromDOM();
+    renderItemsForm();   // re-render to sync inputs
+    renderInvoicePreview();
+  });
+
+  document.getElementById('downloadPdfBtn').addEventListener('click', downloadPDF);
+
+  // also update preview on any input changes in main fields
+  const inputFields = ['invoiceDate', 'invoiceNumber', 'landlordName', 'propertyAddress', 'workOrderId', 'handymanName', 'invoiceNotes'];
+  inputFields.forEach(id => {
+    const el = document.getElementById(id);
+    if (el) {
+      el.addEventListener('input', () => renderInvoicePreview());
+      el.addEventListener('change', () => renderInvoicePreview());
+    }
+  });
+
+  // initial load
+  function init() {
+    // default items 
+    items = [
+      { description: 'General handyman labour (3hrs)', quantity: 3, unitPrice: 38.0 },
+      { description: 'Material: paint, rollers, tape', quantity: 1, unitPrice: 42.75 }
+    ];
+    renderItemsForm();
+    renderInvoicePreview();
+  }
+  init();
+</script>
+</body>
+</html>
