@@ -4,10 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
   <title>Houzcare | Maintenance Invoice Generator</title>
-  <!-- html2canvas for rendering - more reliable on mobile -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-  <!-- jsPDF for PDF creation -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
   <!-- Font Awesome 6 (free icons) -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <style>
@@ -400,12 +396,42 @@
       table.invoice-items th, table.invoice-items td { padding: 8px 4px; font-size: 0.85rem; }
       .invoice-title { font-size: 1.4rem; }
     }
+    
+    /* Print styles - ensures clean PDF */
+    @media print {
+      body * {
+        visibility: hidden;
+      }
+      .print-area, .print-area * {
+        visibility: visible;
+      }
+      .print-area {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+        margin: 0;
+        padding: 20px;
+      }
+      .no-print {
+        display: none !important;
+      }
+      button {
+        display: none !important;
+      }
+      .invoice-card {
+        box-shadow: none;
+        border: 1px solid #ddd;
+        margin: 0;
+        padding: 20px;
+      }
+    }
   </style>
 </head>
 <body>
 <div class="app-container">
   <!-- LEFT: Data entry panel -->
-  <div class="form-panel">
+  <div class="form-panel no-print">
     <h2><i class="fas fa-tools"></i> Houzcare Work Order</h2>
     <div class="sub">Enter job details → Generate invoice preview & PDF</div>
 
@@ -463,9 +489,9 @@
 
   <!-- RIGHT: Invoice Preview & PDF -->
   <div class="preview-panel">
-    <div class="preview-header">
+    <div class="preview-header no-print">
       <h2><i class="fas fa-file-invoice"></i> Invoice Preview</h2>
-      <button class="pdf-button" id="downloadPdfBtn"><i class="fas fa-download"></i> Download PDF Invoice</button>
+      <button class="pdf-button" id="downloadPdfBtn"><i class="fas fa-print"></i> Save as PDF</button>
     </div>
     <div id="invoicePreviewContainer">
       <!-- dynamic invoice card will be rendered here -->
@@ -484,7 +510,7 @@
     return items.reduce((sum, it) => sum + (it.quantity * it.unitPrice), 0);
   }
 
-  function showLoading(message = "Generating PDF...") {
+  function showLoading(message = "Preparing invoice...") {
     let overlay = document.getElementById('loadingOverlay');
     if (!overlay) {
       overlay = document.createElement('div');
@@ -611,7 +637,7 @@
           <td style="padding: 10px 8px; text-align: center; border-bottom: 1px solid #e2e8f0;">${qty}</td>
           <td style="padding: 10px 8px; text-align: right; border-bottom: 1px solid #e2e8f0;">£${price.toFixed(2)}</td>
           <td style="padding: 10px 8px; text-align: right; border-bottom: 1px solid #e2e8f0;">£${amount.toFixed(2)}</td>
-        </tr>
+         </tr>
       `;
     });
 
@@ -619,8 +645,9 @@
       itemsRows = `<tr><td colspan="4" style="text-align:center; padding: 20px;">No items added</td></tr>`;
     }
 
+    // Company details updated to Houzcare Limited
     const company = {
-      name: "Houzcare Property Maintenance",
+      name: "Houzcare Limited",
       address: "363 Nuthall Road, Nottingham, NG8 5BU, UK",
       phone: "+44 5723 00001",
       email: "houzcareltd@gmail.com"
@@ -681,7 +708,7 @@
         </div>
 
         <div class="footer-note">
-          Houzcare Ltd | Registered in England | Payment: BACS transfer or card on file<br>
+          Houzcare Limited | Registered in England | Payment: BACS transfer or card on file<br>
           For any queries: houzcareltd@gmail.com | +44 5723 00001
         </div>
       </div>
@@ -695,118 +722,169 @@
     container.innerHTML = invoiceHtml;
   }
 
-  // Mobile-friendly PDF generation using html2canvas + jsPDF
+  // Mobile-friendly PDF generation using browser's print functionality
+  // This is the most reliable method for mobile devices
   async function downloadPDF() {
-    const container = document.getElementById('invoicePreviewContainer');
-    if (!container) {
-      alert("Invoice preview not ready.");
-      return;
-    }
+    const invoiceNumber = document.getElementById('invoiceNumber').value || 'invoice';
+    const landlordName = document.getElementById('landlordName').value || 'Landlord';
     
-    const invoiceElement = container.querySelector('.invoice-card');
-    if (!invoiceElement) {
-      alert("Invoice preview not ready. Please refresh the preview first.");
-      return;
-    }
+    // Get the current invoice HTML
+    const invoiceHTML = buildInvoiceHTML();
     
-    const total = calculateTotal();
-    if (items.length === 0 || (total === 0 && items.length === 1 && items[0].unitPrice === 0)) {
-      if (!confirm("Invoice total is £0. Continue anyway?")) return;
-    }
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank');
     
-    showLoading("Preparing invoice...");
+    // Write the invoice content to the new window
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>Houzcare Invoice ${invoiceNumber}</title>
+          <meta charset="UTF-8">
+          <meta name="viewport" content="width=device-width, initial-scale=1.0">
+          <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+          <style>
+            * {
+              margin: 0;
+              padding: 0;
+              box-sizing: border-box;
+            }
+            body {
+              font-family: 'Segoe UI', Arial, sans-serif;
+              background: white;
+              padding: 20px;
+              margin: 0;
+            }
+            .invoice-card {
+              max-width: 800px;
+              margin: 0 auto;
+              background: white;
+              border-radius: 20px;
+              padding: 1.8rem;
+              font-family: 'Segoe UI', 'Inter', sans-serif;
+              color: #1e2f3e;
+              border: 1px solid #e2edf2;
+            }
+            .invoice-logo-area {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              flex-wrap: wrap;
+              border-bottom: 2px solid #d0e2ec;
+              padding-bottom: 1rem;
+              margin-bottom: 1.5rem;
+            }
+            .logo-box {
+              display: flex;
+              align-items: center;
+              gap: 12px;
+            }
+            .logo-img {
+              max-height: 70px;
+              max-width: 160px;
+              object-fit: contain;
+            }
+            .company-details {
+              text-align: right;
+              font-size: 0.85rem;
+              line-height: 1.4;
+            }
+            .invoice-title {
+              font-size: 1.8rem;
+              font-weight: 800;
+              color: #1f6e8c;
+              margin-bottom: 0.25rem;
+            }
+            .bill-to {
+              margin: 1rem 0;
+              background: #f5fafd;
+              padding: 0.8rem 1rem;
+              border-radius: 16px;
+            }
+            .invoice-meta {
+              display: flex;
+              justify-content: space-between;
+              flex-wrap: wrap;
+              margin-bottom: 1.2rem;
+            }
+            .totals {
+              text-align: right;
+              margin-top: 0.5rem;
+              padding-top: 0.5rem;
+            }
+            .total-line {
+              font-size: 1.2rem;
+              font-weight: 700;
+            }
+            .footer-note {
+              margin-top: 1.5rem;
+              font-size: 0.75rem;
+              text-align: center;
+              border-top: 1px dashed #cbdde6;
+              padding-top: 1rem;
+              color: #4f6f8a;
+            }
+            .note-field {
+              margin-top: 0.6rem;
+            }
+            table {
+              width: 100%;
+              border-collapse: collapse;
+              margin: 1rem 0;
+            }
+            th, td {
+              padding: 12px 8px;
+              text-align: left;
+              border-bottom: 1px solid #e2e8f0;
+            }
+            th {
+              background: #eef3f8;
+              font-weight: 600;
+            }
+            td {
+              text-align: left;
+            }
+            td:nth-child(2) {
+              text-align: center;
+            }
+            td:nth-child(3), td:nth-child(4) {
+              text-align: right;
+            }
+            @media print {
+              body {
+                padding: 0;
+                margin: 0;
+              }
+              .invoice-card {
+                box-shadow: none;
+                border: none;
+                padding: 0.5rem;
+              }
+              button {
+                display: none;
+              }
+            }
+          </style>
+        </head>
+        <body>
+          ${invoiceHTML}
+          <script>
+            // Auto-trigger print dialog when window loads
+            window.onload = function() {
+              setTimeout(function() {
+                window.print();
+                // Close window after print or after 10 seconds
+                setTimeout(function() {
+                  window.close();
+                }, 10000);
+              }, 500);
+            };
+          <\/script>
+        </body>
+      </html>
+    `);
     
-    try {
-      // Ensure the element is visible and properly styled for capture
-      const originalDisplay = invoiceElement.style.display;
-      invoiceElement.style.display = 'block';
-      
-      // Small delay to ensure any images load
-      await new Promise(resolve => setTimeout(resolve, 200));
-      
-      // Capture the element with high quality
-      const canvas = await html2canvas(invoiceElement, {
-        scale: 3,
-        backgroundColor: '#ffffff',
-        logging: false,
-        useCORS: true,
-        allowTaint: false
-      });
-      
-      const imgData = canvas.toDataURL('image/png');
-      const { jsPDF } = window.jspdf;
-      
-      // Calculate PDF dimensions based on canvas
-      const imgWidth = 210; // A4 width in mm
-      const pageHeight = 297; // A4 height in mm
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
-      
-      let pdf = new jsPDF('p', 'mm', 'a4');
-      let position = 0;
-      
-      // Add first page
-      pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-      
-      // If content is taller than one page, add another page
-      if (imgHeight > pageHeight) {
-        let heightLeft = imgHeight - pageHeight;
-        position = -pageHeight;
-        while (heightLeft > 0) {
-          pdf.addPage();
-          pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-          heightLeft -= pageHeight;
-          position -= pageHeight;
-        }
-      }
-      
-      // Save the PDF
-      const invoiceNumber = document.getElementById('invoiceNumber').value || 'invoice';
-      pdf.save(`Houzcare_${invoiceNumber}.pdf`);
-      
-      invoiceElement.style.display = originalDisplay;
-      hideLoading();
-      
-      // Optional success indicator
-      console.log("PDF saved successfully");
-      
-    } catch (error) {
-      console.error("PDF generation error:", error);
-      hideLoading();
-      
-      // Fallback: Use print method as alternative
-      if (confirm("PDF generation had an issue. Would you like to use the Print option instead? (This works well on mobile)")) {
-        const printWindow = window.open('', '_blank');
-        const printContent = buildInvoiceHTML();
-        printWindow.document.write(`
-          <!DOCTYPE html>
-          <html>
-            <head>
-              <title>Houzcare Maintenance Invoice</title>
-              <meta charset="UTF-8">
-              <meta name="viewport" content="width=device-width, initial-scale=1.0">
-              <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-              <style>
-                * { margin: 0; padding: 0; box-sizing: border-box; }
-                body { 
-                  font-family: 'Segoe UI', Arial, sans-serif; 
-                  padding: 20px; 
-                  background: white;
-                }
-                @media print {
-                  body { padding: 0; margin: 0; }
-                  .invoice-card { box-shadow: none; margin: 0; }
-                }
-              </style>
-            </head>
-            <body>${printContent}</body>
-          </html>
-        `);
-        printWindow.document.close();
-        printWindow.print();
-      } else {
-        alert("Please try refreshing the preview and downloading again.");
-      }
-    }
+    printWindow.document.close();
   }
 
   function syncItemsFromDOM() {
