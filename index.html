@@ -360,6 +360,45 @@
       margin-top: 0.6rem;
     }
     
+    /* Terms and conditions section */
+    .terms-section {
+      margin-top: 1.8rem;
+      padding-top: 1rem;
+      border-top: 2px solid #d0e2ec;
+      font-size: 0.7rem;
+      line-height: 1.4;
+      color: #4a627a;
+    }
+    .terms-section h4 {
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: #1f6e8c;
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .terms-section p {
+      margin-bottom: 0.4rem;
+    }
+    .terms-section .terms-list {
+      margin-left: 1rem;
+    }
+    .terms-section .terms-list li {
+      margin-bottom: 0.25rem;
+    }
+    
+    /* Bank details section */
+    .bank-details {
+      margin-top: 0.8rem;
+      padding: 0.6rem;
+      background: #f8fafc;
+      border-radius: 12px;
+      font-size: 0.7rem;
+      text-align: center;
+      color: #2c5a74;
+      font-weight: 500;
+    }
+    
     /* Loading indicator for mobile */
     .loading-overlay {
       position: fixed;
@@ -396,6 +435,9 @@
       table.invoice-items th, table.invoice-items td { padding: 8px 4px; font-size: 0.85rem; }
       .invoice-title { font-size: 1.4rem; }
       .logo-img { max-height: 80px; max-width: 180px; }
+      .terms-section { font-size: 0.6rem; }
+      .terms-section h4 { font-size: 0.65rem; }
+      .bank-details { font-size: 0.65rem; }
     }
     
     /* Print styles - ensures clean PDF */
@@ -616,6 +658,27 @@
     });
   }
 
+  // Terms and conditions HTML block
+  function getTermsHTML() {
+    return `
+      <div class="terms-section">
+        <h4>HOUZCARE – PAYMENT TERMS & ENFORCEMENT CONDITIONS</h4>
+        <p><strong>1. Payment Terms</strong><br>All invoices are payable within 7 days of the invoice date unless otherwise agreed in writing. Time for payment is of the essence.</p>
+        <p><strong>2. Late Payment Interest (Statutory)</strong><br>In accordance with the Late Payment of Commercial Debts (Interest) Act 1998, Houzcare reserves the right to charge interest at 8% above the Bank of England base rate, accrued daily from the due date until payment is received in full. Interest will be applied automatically and may be invoiced separately.</p>
+        <p><strong>3. Late Payment Compensation</strong><br>The following statutory fixed charges will be applied to overdue invoices: £40 (up to £999.99), £70 (£1,000 – £9,999.99), £100 (£10,000 and above). These are mandatory recovery costs and will be added without further notice.</p>
+        <p><strong>4. Additional Recovery & Enforcement Costs</strong><br>Houzcare reserves the right to recover all reasonable costs incurred in recovering overdue sums, including but not limited to: debt recovery agency fees, legal fees (solicitors, court proceedings, enforcement agents), administrative and internal recovery costs, site revisit / aborted visit charges. All such costs shall be recoverable as a debt.</p>
+        <p><strong>5. Call-Out, Attendance & Abortive Charges</strong><br>Where access is not provided, or works cannot proceed due to client-side issues: a call-out / abortive charge will be applied. Additional visits will be charged at standard rates. These charges are payable immediately upon invoicing.</p>
+        <p><strong>6. Suspension of Works / Services</strong><br>Houzcare reserves the right to suspend all ongoing works immediately, withhold completion, reports, certifications, or documentation, and refuse further bookings or attendance until all outstanding balances are cleared.</p>
+        <p><strong>7. Materials & Installed Works</strong><br>All materials supplied and/or installed remain the property of Houzcare until full payment is received. Houzcare reserves the right to recover goods where legally permissible and charge for removal, reinstatement, and associated costs.</p>
+        <p><strong>8. No Set-Off or Withholding</strong><br>Payments must be made in full without deduction, retention, counterclaim, or set-off. Any disputes must be raised separately and do not affect payment obligations.</p>
+        <p><strong>9. Debt Recovery & Legal Action</strong><br>Failure to pay may result in immediate referral to a debt collection agency, issuing of a County Court claim (CCJ), enforcement action including High Court Enforcement Officers (HCEO). No further notice will be required before escalation.</p>
+        <p><strong>10. Commercial Indemnity</strong><br>The client agrees to fully indemnify Houzcare against any losses arising from non-payment, third-party recovery costs, time, labour, and administrative expenses incurred in enforcement.</p>
+        <p><strong>11. Interest on Commercial Accounts</strong><br>For business-to-business clients, Houzcare expressly relies on statutory rights under the Late Payment of Commercial Debts (Interest) Act 1998 and associated regulations.</p>
+        <p><strong>12. Jurisdiction</strong><br>These terms shall be governed by and interpreted in accordance with the laws of England and Wales, with disputes subject to its courts.</p>
+      </div>
+    `;
+  }
+
   function buildInvoiceHTML() {
     const invoiceDate = document.getElementById('invoiceDate').value;
     const invoiceNumber = document.getElementById('invoiceNumber').value || 'INV-001';
@@ -638,7 +701,7 @@
           <td style="padding: 10px 8px; text-align: center; border-bottom: 1px solid #e2e8f0;">${qty}</td>
           <td style="padding: 10px 8px; text-align: right; border-bottom: 1px solid #e2e8f0;">£${price.toFixed(2)}</td>
           <td style="padding: 10px 8px; text-align: right; border-bottom: 1px solid #e2e8f0;">£${amount.toFixed(2)}</td>
-         </tr>
+        </tr>
       `;
     });
 
@@ -708,9 +771,14 @@
         </div>
 
         <div class="footer-note">
-          Houzcare Limited | Registered in England | Payment: BACS transfer or card on file<br>
-          For any queries: houzcareltd@gmail.com | +44 5723 00001
+          Payment due within 7 days. For queries: houzcareltd@gmail.com | +44 5723 00001
         </div>
+        
+        <div class="bank-details">
+          <i class="fas fa-university"></i> HOUZCARE LIMITED | Company No: 18782150 | Sort Code: 04-00-05 | Monzo Bank
+        </div>
+        
+        ${getTermsHTML()}
       </div>
     `;
   }
@@ -723,7 +791,6 @@
   }
 
   // Mobile-friendly PDF generation using browser's print functionality
-  // This is the most reliable method for mobile devices
   async function downloadPDF() {
     const invoiceNumber = document.getElementById('invoiceNumber').value || 'invoice';
     
@@ -826,6 +893,35 @@
             .note-field {
               margin-top: 0.6rem;
             }
+            .terms-section {
+              margin-top: 1.8rem;
+              padding-top: 1rem;
+              border-top: 2px solid #d0e2ec;
+              font-size: 0.7rem;
+              line-height: 1.4;
+              color: #4a627a;
+            }
+            .terms-section h4 {
+              font-size: 0.75rem;
+              font-weight: 700;
+              color: #1f6e8c;
+              margin-bottom: 0.5rem;
+              text-transform: uppercase;
+              letter-spacing: 0.5px;
+            }
+            .terms-section p {
+              margin-bottom: 0.4rem;
+            }
+            .bank-details {
+              margin-top: 0.8rem;
+              padding: 0.6rem;
+              background: #f8fafc;
+              border-radius: 12px;
+              font-size: 0.7rem;
+              text-align: center;
+              color: #2c5a74;
+              font-weight: 500;
+            }
             table {
               width: 100%;
               border-collapse: collapse;
@@ -868,11 +964,9 @@
         <body>
           ${invoiceHTML}
           <script>
-            // Auto-trigger print dialog when window loads
             window.onload = function() {
               setTimeout(function() {
                 window.print();
-                // Close window after print or after 10 seconds
                 setTimeout(function() {
                   window.close();
                 }, 10000);
